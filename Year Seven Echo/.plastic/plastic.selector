@@ -1,0 +1,4 @@
+repository "Year Seven Echo@tj_2495797843_qq_com@cloud.cn"
+  path "/"
+    br "/main"
+    co "/main"
