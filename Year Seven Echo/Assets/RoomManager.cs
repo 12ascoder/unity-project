@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using System;
 
 public class RoomManager : MonoBehaviour
 {
@@ -22,7 +21,9 @@ public class RoomManager : MonoBehaviour
     [Header("当前关卡")]
     public int currentLevel = 1;
 
+    // 按生成顺序记录所有房间
     private List<GameObject> spawnedRoomList = new List<GameObject>();
+
     private Texture2D blackTex;
     private float alpha = 0f;
     private bool isFading = false;
@@ -32,7 +33,6 @@ public class RoomManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
 
-        // 初始化黑屏贴图
         blackTex = new Texture2D(1, 1);
         blackTex.SetPixel(0, 0, Color.black);
         blackTex.Apply();
@@ -45,12 +45,11 @@ public class RoomManager : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.F))
+        if (Input.GetKeyDown(KeyCode.F) && !isFading)
         {
             GoNextLevel();
         }
 
-        // 按R 触发带黑屏传送
         if (Input.GetKeyDown(KeyCode.R) && !isFading)
         {
             StartCoroutine(FadeAndTeleport());
@@ -75,15 +74,25 @@ public class RoomManager : MonoBehaviour
             Debug.Log("已经是最后一关");
             return;
         }
+
+        // 核心规则：永远只保留【最新2个房间】，多余的最旧房间删掉
+        // 每进下一关，先删最旧的，保证最多只留两间
+        while (spawnedRoomList.Count >= 2)
+        {
+            GameObject oldRoom = spawnedRoomList[0];
+            if (oldRoom != null) Destroy(oldRoom);
+            spawnedRoomList.RemoveAt(0);
+        }
+
+        // 生成下一关
         SpawnRoomByLevel(next);
     }
 
-    // 黑屏渐入 -> 传送 -> 黑屏淡出
+    // 失败：黑屏渐入 → 清所有房间 → 重生1号 → 传送 → 渐出
     System.Collections.IEnumerator FadeAndTeleport()
     {
         isFading = true;
 
-        // 1. 渐入黑屏 1.5秒
         float t = 0;
         while (t < fadeInTime)
         {
@@ -93,20 +102,25 @@ public class RoomManager : MonoBehaviour
         }
         alpha = 1;
 
-        // 2. 清空房间 + 重建1号房
+        // 销毁全部房间
         foreach (var room in spawnedRoomList)
-            Destroy(room);
+        {
+            if (room != null) Destroy(room);
+        }
         spawnedRoomList.Clear();
+
+        // 重新生成1号房
+        currentLevel = 1;
         SpawnRoomByLevel(1);
 
-        // 3. 传送玩家到指定Pos
+        // 传送到指定点位
         if (player != null && firstRoomSpawnPoint != null)
         {
             player.position = firstRoomSpawnPoint.position;
             player.rotation = firstRoomSpawnPoint.rotation;
         }
 
-        // 4. 渐出黑屏 1.5秒
+        // 黑屏淡出
         t = 0;
         while (t < fadeOutTime)
         {
@@ -119,7 +133,6 @@ public class RoomManager : MonoBehaviour
         isFading = false;
     }
 
-    // 绘制全屏黑幕
     void OnGUI()
     {
         if (alpha <= 0) return;
