@@ -21,9 +21,7 @@ public class RoomManager : MonoBehaviour
     [Header("当前关卡")]
     public int currentLevel = 1;
 
-    // 按生成顺序记录所有房间
     private List<GameObject> spawnedRoomList = new List<GameObject>();
-
     private Texture2D blackTex;
     private float alpha = 0f;
     private bool isFading = false;
@@ -45,11 +43,13 @@ public class RoomManager : MonoBehaviour
 
     void Update()
     {
+        // F键 触发下一关
         if (Input.GetKeyDown(KeyCode.F) && !isFading)
         {
             GoNextLevel();
         }
 
+        // R键 失败重置
         if (Input.GetKeyDown(KeyCode.R) && !isFading)
         {
             StartCoroutine(FadeAndTeleport());
@@ -66,17 +66,16 @@ public class RoomManager : MonoBehaviour
         currentLevel = level;
     }
 
-    void GoNextLevel()
+    public void GoNextLevel()
     {
-        int next = currentLevel + 1;
-        if (next > roomPrefabs.Length)
+        int nextLevel = currentLevel + 1;
+        if (nextLevel > roomPrefabs.Length)
         {
             Debug.Log("已经是最后一关");
             return;
         }
 
-        // 核心规则：永远只保留【最新2个房间】，多余的最旧房间删掉
-        // 每进下一关，先删最旧的，保证最多只留两间
+        // 最多只留2个房间，删掉最旧的
         while (spawnedRoomList.Count >= 2)
         {
             GameObject oldRoom = spawnedRoomList[0];
@@ -84,11 +83,9 @@ public class RoomManager : MonoBehaviour
             spawnedRoomList.RemoveAt(0);
         }
 
-        // 生成下一关
-        SpawnRoomByLevel(next);
+        SpawnRoomByLevel(nextLevel);
     }
 
-    // 失败：黑屏渐入 → 清所有房间 → 重生1号 → 传送 → 渐出
     System.Collections.IEnumerator FadeAndTeleport()
     {
         isFading = true;
@@ -102,25 +99,21 @@ public class RoomManager : MonoBehaviour
         }
         alpha = 1;
 
-        // 销毁全部房间
         foreach (var room in spawnedRoomList)
         {
             if (room != null) Destroy(room);
         }
         spawnedRoomList.Clear();
 
-        // 重新生成1号房
         currentLevel = 1;
         SpawnRoomByLevel(1);
 
-        // 传送到指定点位
         if (player != null && firstRoomSpawnPoint != null)
         {
             player.position = firstRoomSpawnPoint.position;
             player.rotation = firstRoomSpawnPoint.rotation;
         }
 
-        // 黑屏淡出
         t = 0;
         while (t < fadeOutTime)
         {
